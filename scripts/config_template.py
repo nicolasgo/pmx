@@ -11,7 +11,7 @@ import os
 
 # List of 'string's representing files to parse
 #
-input_files = ['test.log.a']
+input_files = []
 
 # List of 'integer's representing hours to keep
 # Example : [3,4,5] will keep only hours 3, 4 and 5. Important, it doesn't support ranges
@@ -29,7 +29,7 @@ msisdn = []
 # Example : [200, 302] will keep only HTTP code 200 and 302
 # Empty list means keep all 
 #  
-retcode = [200, 302]
+retcode = []
 
 # List of 'integer's representing the minimum number of bytes to keep
 # Example : [10000] will keep only requests with numbytes greater or equal to 10000 bytes

@@ -29,8 +29,8 @@ def run(files):
     for input_filename in files:
         if config.verbose: print "normaliz(ing)", input_filename
 
-        input_file = open(input_filename+'.pre', 'r')
-        output_file = open(input_filename+'.norm', 'w')
+        input_file = open(config.get_current_file(input_filename,'.pre'), 'r')
+        output_file = open(config.get_current_file(input_filename,'.norm'), 'w')
 
         nginx_parse.parse(input_file, print_header, output_file)
 
@@ -38,7 +38,7 @@ def run(files):
         output_file.close()
 
         if config.output_file_stdout:
-            with open(input_filename+'.norm', "r") as f:
+            with open(config.get_current_file(input_filename,'.norm'), "r") as f:
                 shutil.copyfileobj(f, sys.stdout)
 
 if __name__ == "__main__":
@@ -51,8 +51,4 @@ if __name__ == "__main__":
         files = arguments
 
     run(files)
-
-    #if config.verbose:
-    #    with open(input_filename+'.norm', "r") as f:
-    #        shutil.copyfileobj(f, sys.stdout)
 

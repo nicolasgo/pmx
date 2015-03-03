@@ -58,7 +58,7 @@ def run(files):
         if config.verbose: print "pre_fiter(ing)", input_filename
 
         input_file = open(input_filename, 'r')
-        output_file = open(input_filename+'.pre', 'w')
+        output_file = open(config.get_current_file(input_filename,'.pre'), 'w')
 
         nginx_parse.parse(input_file, pre_filter, output_file)
 
@@ -66,7 +66,7 @@ def run(files):
         output_file.close()
 
         if config.output_file_stdout:
-            with open(input_filename+'.pre', "r") as f:
+            with open(config.get_current_file(input_filename, '.pre'), "r") as f:
                 shutil.copyfileobj(f, sys.stdout)
 
 if __name__ == "__main__":

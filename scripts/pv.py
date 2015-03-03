@@ -228,10 +228,9 @@ def run(files):
     for input_filename in files:
         if config.verbose: print "pv(ing)", input_filename
 
-        input_file = open(input_filename+'.sort', 'r')
-        output_file = open(input_filename+'.pv', 'w')
+        input_file = open(config.get_current_file(input_filename,'.sort'), 'r')
+        output_file = open(config.get_current_file(input_filename,'.pv'), 'w')
 
-        #nginx_parse.parse(input_file, pv_filter)
         norm_parse.parse(input_file, pv_filter, output_file)
     
         print_users(output_file)
@@ -240,7 +239,7 @@ def run(files):
         output_file.close()
 
         if config.output_file_stdout:
-            with open(input_filename+'.pv', "r") as f:
+            with open(config.get_current_file(input_filename,'.pv'), "r") as f:
                 shutil.copyfileobj(f, sys.stdout)
 
 

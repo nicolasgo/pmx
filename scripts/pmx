@@ -1,0 +1,166 @@
+#!/usr/bin/env python
+
+import os
+import click
+import shutil
+import glob
+import config
+import traceback
+import subprocess
+
+HIDDEN = '~/.pmx'
+
+@click.group()
+def cli():
+    """Pragmex analytic command line framework
+    """
+
+@cli.command('new')
+@click.argument('name')
+def campaign_new(name):
+    """Creates a new campaign."""
+    try:
+        if os.path.isdir(name):
+            click.echo(' '.join(['Campaign', name, 'already exist']))
+            return
+
+        # create new directory
+        os.mkdir(name)
+
+        # copy template file in new campaign
+        shutil.copy('config_template.py', name+'/'+'config.py')
+        
+        # make it current
+        shutil.copy(name+'/'+'config.py', 'config.py')
+
+        reload(config)
+
+        # set as current in user home directory as hidden file
+        with open(os.path.expanduser(HIDDEN), 'w') as f:
+            f.write(name)
+        
+        click.echo(' '.join(['Campaign', name, "created"]))
+    except:
+        click.echo(' '.join(['Error creating campaign', name]))
+        traceback.print_exc()
+
+@cli.command('current')
+def campaign_current():
+    """Display current campaign"""
+    try:
+        if not os.path.isfile(os.path.expanduser(HIDDEN)):
+            click.echo('There is no current campaign')
+            return
+
+        # get current campaign
+        with open(os.path.expanduser(HIDDEN), 'r') as f:
+            current = f.read()
+            #click.echo(' '.join(['Current campaign is', current]))
+        
+        if not os.path.isdir(current):
+            click.echo(' '.join(['Current campaign', current, 'doesn\'t exist.']))
+            click.echo('Create a new campaign or set a current existing campaign.')
+            return
+
+        click.echo(' '.join(['Current campaign is', current]))
+        # make it current
+        shutil.copy(current+'/'+'config.py', 'config.py')
+    except:
+        click.echo(' '.join(['Error creating campaign', name]))
+        traceback.print_exc()
+        
+
+@cli.command('set')
+@click.argument('name')
+def campaign_set(name):
+    """Set current campaign"""
+    try:
+        if not os.path.isdir(name):
+            click.echo(' '.join(['There is no campaign named', name]))
+            return
+
+        # make it current
+        shutil.copy(name+'/'+'config.py', 'config.py')
+
+        reload(config)
+ 
+        # get current campaign
+        with open(os.path.expanduser(HIDDEN), 'w') as f:
+            f.write(name)
+            click.echo(' '.join(['Current campaign is', name]))
+    except:
+        click.echo(' '.join(['Error creating campaign', name]))
+        traceback.print_exc()
+
+@cli.command('config')
+def campaign_config():
+    """Display current configuration campaign"""
+    try:
+        if not os.path.isfile(os.path.expanduser(HIDDEN)):
+            click.echo('There is no current campaign')
+            return
+
+        # get current campaign
+        with open(os.path.expanduser(HIDDEN), 'r') as f:
+            current = f.read()
+ 
+        if not os.path.isdir(current):
+            click.echo(' '.join(['Current campaign', current, 'doesn\'t exist.']))
+            click.echo('Create a new campaign or set a current existing campaign.')
+            return
+
+        print 'input_files', config.input_files
+        print 'time', config.time
+        print 'msisdn', config.msisdn
+        print 'retcode', config.retcode
+        print 'numbytes', config.numbytes
+        print 'ip', config.ip
+        print 'useragent', config.useragent
+        print 'path', config.path
+        
+    except:
+        click.echo('Error, cannot display config file')
+        traceback.print_exc()
+
+@cli.command('list')
+def campaign_list():
+    """Display all campaigns available"""
+    try:
+        if not os.path.isfile(os.path.expanduser(HIDDEN)):
+            click.echo('There is no current campaign')
+            return
+
+        for f in glob.glob('*/config.py'):
+            click.echo(' '.join(['campaign', f.split('/')[0]]))
+        
+    except:
+        click.echo('Error, cannot display campaign list')
+        traceback.print_exc()
+
+
+@cli.command('edit')
+def campaign_edit():
+    """Edit current campaign configuration file"""
+    try:
+        if not os.path.isfile(os.path.expanduser(HIDDEN)):
+            click.echo('There is no current campaign')
+            return
+
+        # get current campaign
+        with open(os.path.expanduser(HIDDEN), 'r') as f:
+            current = f.read()
+        
+        if not os.path.isdir(current):
+            click.echo(' '.join(['Current campaign', current, 'doesn\'t exist.']))
+            click.echo('Create a new campaign or set a current existing campaign.')
+            return
+
+        editor = os.getenv('EDITOR', 'vi')
+        subprocess.call('%s %s' % (editor, current+'/'+'config.py'), shell=True)
+
+    except:
+        click.echo(' '.join(['Error creating campaign', name]))
+        traceback.print_exc()
+        
+if __name__ == '__main__':
+    cli()

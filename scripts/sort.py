@@ -17,11 +17,11 @@ def run(files):
     for input_filename in files:
         if config.verbose: print "sort(ing)", input_filename
 
-        cmd = """/bin/bash -c "sort -t $'\t' -k 2,2 -k 1,1 -k 7,7 -o %s %s" """ % (input_filename+'.sort', input_filename+'.norm')
+        cmd = """/bin/bash -c "sort -t $'\t' -k 2,2 -k 1,1 -k 7,7 -o %s %s" """ % (config.get_current_file(input_filename,'.sort'), config.get_current_file(input_filename,'.norm'))
         subprocess.call(cmd, shell=True)
 
         if config.output_file_stdout:
-            with open(input_filename+'.sort', "r") as f:
+            with open(config.get_current_file(input_filename,'.sort'), "r") as f:
                 shutil.copyfileobj(f, sys.stdout)
 
 

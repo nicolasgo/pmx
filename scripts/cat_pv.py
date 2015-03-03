@@ -144,9 +144,9 @@ def run(files):
     for input_filename in files:
         if config.verbose: print "cat_pv(ing)", input_filename
 
-        input_file = open(input_filename+'.pv', 'r')
+        input_file = open(config.get_current_file(input_filename,'.pv'), 'r')
 
-        output_file = open(input_filename+'.cat_pv', 'w')
+        output_file = open(config.get_current_file(input_filename, '.cat_pv'), 'w')
         writer = csv.writer(output_file, delimiter=',', quoting=csv.QUOTE_MINIMAL)
 
         if options.dailysum:
@@ -186,7 +186,7 @@ def run(files):
         output_file.close()
 
         if config.output_file_stdout:
-            with open(input_filename+'.cat_pv', "r") as f:
+            with open(config.get_current_file(input_filename,'.cat_pv'), "r") as f:
                 shutil.copyfileobj(f, sys.stdout)
 
 
@@ -209,6 +209,7 @@ if __name__ == "__main__":
     if arguments:
         files = arguments
 
-    print "files", files
+    if config.verbose: print "files", files
+
     run(files)
 
