@@ -7,19 +7,19 @@ Before running 'pmx', you need to install 'click' (http://http://click.pocoo.org
 
 You can use the following command:
 
-> pip install click
+    pip install click
 
 or install from the github repository https://github.com/mitsuhiko/click
 
-> git clone https://github.com/mitsuhiko/click.git
-> cd click
-> python setup.py install
+    git clone https://github.com/mitsuhiko/click.git
+    cd click
+    python setup.py install
 
 
 Install PMX
 
-> git clone https://github.com/nicolasgo/pmx.git
-> cd pmx 
+    git clone https://github.com/nicolasgo/pmx.git
+    cd pmx 
 
 
 Running PMX
