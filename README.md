@@ -106,6 +106,11 @@ After installing pmx, create a new campaign named 'pageview'
     Updating pageview campaign configuration
 
 
+    ./clean.py
+
+    <'clean.py' deletes all temporary files for this campaign>
+
+
     ./cat_pv
 
     files ['test.log.a']
@@ -118,4 +123,15 @@ After installing pmx, create a new campaign named 'pageview'
     sort(ing) test.log.a
     pv(ing) test.log.a
     cat_pv(ing) test.log.a
-    
+   
+
+
+Limitations (TO-DO)
+-------------------
+
+There's currently no 'pmx' python installation package available. After cloning the repository from github, you need to go directly to the installation directory to execute any commands.
+
+    git clone https://github.com/nicolasgo/pmx.git
+    cd pmx 
+
+     
