@@ -1,23 +1,13 @@
 #!/usr/bin/python
 
-import re
 import sys
 import traceback
-import config
 import datetime
 import shutil
 from optparse import OptionParser
 
 import config
 import nginx_parse
-
-# Regular expressions
-#
-line_nginx_full_re = re.compile(r"""\[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] ((\"(GET|POST|HEAD) )(?P<url>.+)(http\/1\.1")) (?P<statuscode>\d{3}) (?P<bytessent>\d+) (["](?P<referer>(\-)|(.*))["]) (["](?P<useragent>.*)["]) (?P<id>\w+)""", re.IGNORECASE)
-
-line_nginx_wifi_re = re.compile(r"""\[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] ((\"(GET|POST|HEAD) )(?P<url>.+)(http\/1\.1")) (?P<statuscode>\d{3}) (?P<bytessent>\d+) (["](?P<referer>(\-)|(.*))["]) (["](?P<useragent>.*)["])""", re.IGNORECASE)
-
-line_nginx_re = [line_nginx_full_re, line_nginx_wifi_re]
 
 # Filtering
 #

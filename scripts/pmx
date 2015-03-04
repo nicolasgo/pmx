@@ -62,11 +62,13 @@ def campaign_current():
             click.echo('Create a new campaign or set a current existing campaign.')
             return
 
-        click.echo(' '.join(['Current campaign is', current]))
         # make it current
         shutil.copy(current+'/'+'config.py', 'config.py')
+
+        click.echo(' '.join(['Current campaign is', current]))
+
     except:
-        click.echo(' '.join(['Error creating campaign', name]))
+        click.echo(' '.join(['Error displaying current campaign', name]))
         traceback.print_exc()
         
 
@@ -87,10 +89,42 @@ def campaign_set(name):
         # get current campaign
         with open(os.path.expanduser(HIDDEN), 'w') as f:
             f.write(name)
-            click.echo(' '.join(['Current campaign is', name]))
+
+        click.echo(' '.join(['Current campaign is', name]))
+
     except:
-        click.echo(' '.join(['Error creating campaign', name]))
+        click.echo(' '.join(['Error setting current campaign', name]))
         traceback.print_exc()
+
+
+@cli.command('update')
+def campaign_update():
+    """Update current campaign configuration"""
+    try:
+        if not os.path.isfile(os.path.expanduser(HIDDEN)):
+            click.echo('There is no current campaign')
+            return
+
+        # get current campaign
+        with open(os.path.expanduser(HIDDEN), 'r') as f:
+            current = f.read()
+ 
+        if not os.path.isdir(current):
+            click.echo(' '.join(['Current campaign', current, 'doesn\'t exist.']))
+            click.echo('Create a new campaign or set a current existing campaign.')
+            return
+
+        # make it current
+        shutil.copy(current+'/'+'config.py', 'config.py')
+
+        reload(config)
+
+        click.echo(' '.join(['Updating', current, 'campaign configuration']))
+
+    except:
+        click.echo(' '.join(['Error updating campaign', current, 'configuration']))
+        traceback.print_exc()
+
 
 @cli.command('config')
 def campaign_config():
@@ -159,7 +193,7 @@ def campaign_edit():
         subprocess.call('%s %s' % (editor, current+'/'+'config.py'), shell=True)
 
     except:
-        click.echo(' '.join(['Error creating campaign', name]))
+        click.echo(' '.join(['Error cannot edit campaign', current]))
         traceback.print_exc()
         
 if __name__ == '__main__':
