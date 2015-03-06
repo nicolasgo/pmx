@@ -151,7 +151,7 @@ def print_oneuser(output, msisdn, count):
 # output is csv-like
 # 
 def print_users(output,targetcount=0,limit=None):
-    #print_header(output) # csv header
+    print_header(output) # csv header
 
     for msisdn, count in users.most_common(limit):
         if msisdn > 10: # msisdn <1000 are for internal use.

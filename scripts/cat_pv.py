@@ -65,7 +65,7 @@ VARIETY = 6
 def calc_end_time(s):
 
     if options.dailysum: #make the endtime at 00:01 tomorrow
-        startday=datetime.strptime(s[1].split(' ')[0], '%Y-%m-%d')
+        startday=datetime.strptime(s[TIME].split(' ')[0], '%Y-%m-%d')
         endday=startday+timedelta(days=1)
         end=int(endday.strftime("%s"))
         #start=int(startday.strftime("%s"))
@@ -74,7 +74,7 @@ def calc_end_time(s):
 	
     else:
         start = int(datetime.strptime(s[1], '%Y-%m-%d %H:%M:%S').strftime("%s"))
-        duration = int(s[2])
+        duration = int(s[DURATION])
         end = start+duration
 
     return end
@@ -88,7 +88,7 @@ def sum_sessions(s1, s2):
         try:
             end=calc_end_time(s2)
         except:
-            print 'Error in sum_session():', s2[1]
+            print 'Error in sum_session():', s2[TIME]
             end=calc_end_time(s1)
 
         if (start+int(s1[DURATION])) < end: # Make sure that s2 is not contained within s1's interval

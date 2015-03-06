@@ -9,15 +9,15 @@ from optparse import OptionParser
 
 def run(files):
     # Check are pre-condition
-    if not dependency.precondition(files, '.norm'):
-        import normalize
-        if config.verbose: print "running dependencies... '.norm' files doesn't exist"
-        normalize.run(files)
+    if not dependency.precondition(files, '.pre'):
+        import pre_filter 
+        if config.verbose: print "running dependencies... '.pre' files doesn't exist"
+        pre_filter.run(files)
 
     for input_filename in files:
         if config.verbose: print "sort(ing)", input_filename
 
-        cmd = """/bin/bash -c "sort -t $'\t' -k 2,2 -k 1,1 -k 7,7 -o %s %s" """ % (config.get_current_file(input_filename,'.sort'), config.get_current_file(input_filename,'.norm'))
+        cmd = """/bin/bash -c "sort -t $'\t' -k 2,2 -k 1,1 -k 7,7 -o %s %s" """ % (config.get_current_file(input_filename,'.sort'), config.get_current_file(input_filename,'.pre'))
         subprocess.call(cmd, shell=True)
 
         if config.output_file_stdout:

@@ -35,7 +35,7 @@ def filter_path(path):
     return len(config.path) == 0 or any(path.startswith(p) for p in config.path)
 
 def pre_filter(output, time, msisdn, retcode, numbytes, ip, useragent, path):
-    return  filter_time(time) and \
+    keep =  filter_time(time) and \
             filter_msisdn(msisdn) and \
             filter_retcode(retcode) and \
             filter_numbytes(numbytes) and \
@@ -43,9 +43,17 @@ def pre_filter(output, time, msisdn, retcode, numbytes, ip, useragent, path):
             filter_useragent(useragent) and \
             filter_path(path)
 
+    if keep:
+        line = '\t'.join([time.strftime("%Y-%m-%d %H:%M:%S"), msisdn, str(retcode), str(numbytes), ip, '"'+useragent+'"', path])
+        output.write(line)
+        output.write('\n')
+
+    return False
+
+
 def run(files):
     for input_filename in files:
-        if config.verbose: print "pre_fiter(ing)", input_filename
+        if config.verbose: print "pre_filter(ing)", input_filename
 
         input_file = open(input_filename, 'r')
         output_file = open(config.get_current_file(input_filename,'.pre'), 'w')

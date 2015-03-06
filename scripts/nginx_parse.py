@@ -7,9 +7,9 @@ import datetime
 
 # Regular expressions
 #
-line_nginx_full_re = re.compile(r"""\[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] ((\"(GET|POST|HEAD) )(?P<url>.+)(http\/1\.1")) (?P<statuscode>\d{3}) (?P<bytessent>\d+) (["](?P<referer>(\-)|(.*))["]) (["](?P<useragent>.*)["]) (?P<id>\w+)""", re.IGNORECASE)
+line_nginx_full_re = re.compile(r"""(?P<ipaddress>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) (?P<remoteaddr>(\-)|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})) (?P<remoteuser>(\-)|([^[])+) \[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] ((\"(GET|POST|HEAD) )(?P<url>.+)(http\/1\.1")) (?P<statuscode>\d{3}) (?P<bytessent>\d+) (["](?P<refferer>(\-)|(.*))["]) (["](?P<useragent>.*)["]) (?P<id>\w+)""", re.IGNORECASE)
 
-line_nginx_wifi_re = re.compile(r"""\[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] ((\"(GET|POST|HEAD) )(?P<url>.+)(http\/1\.1")) (?P<statuscode>\d{3}) (?P<bytessent>\d+) (["](?P<referer>(\-)|(.*))["]) (["](?P<useragent>.*)["]) - (?P<nexa>\w+) (["](?P<wifiid>(\-)|(.*))["])""", re.IGNORECASE)
+line_nginx_wifi_re = re.compile(r"""(?P<ipaddress>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) (?P<remoteaddr>(\-)|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})) (?P<remoteuser>(\-)|([^[])+) \[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] ((\"(GET|POST|HEAD) )(?P<url>.+)(http\/1\.1")) (?P<statuscode>\d{3}) (?P<bytessent>\d+) (["](?P<refferer>(\-)|(.*))["]) (["](?P<useragent>.*)["]) - (?P<nexa>\w+) (["](?P<wifiid>(\-)|(.*))["])""", re.IGNORECASE)
 
 line_nginx_re = [line_nginx_full_re, line_nginx_wifi_re]
 
@@ -44,20 +44,12 @@ def parse(input_file, filter_function, output_file = None):
             if not line.strip():
                 continue
  
-            idx = line.find('[', 0)
-            if idx == -1:
-                print "ERROR:-1", line
-                continue
-
-            ip = line[0:idx].replace(' - ', '')
-            ip = ip.strip().split(' ')[0]
-            rest = line[idx:]
-   
             matched = False
             for regexp in line_nginx_re:
-                match = regexp.search(rest)
+                match = regexp.match(line)
                 if match:
                     dct = match.groupdict()
+                    ip = dct['ipaddress']
                     time = datetime.datetime.strptime(dct['dateandtime'].rpartition(' ')[0],  "%d/%b/%Y:%H:%M:%S" )
                     path = dct['url']
                     numbytes = int(dct['bytessent'])
