@@ -20,7 +20,7 @@ def xx_msisdn(msisdn):
             m = hashlib.md5()
 
             m.update(msisdn)
-            mh = '%.12s'%(m.hexdigest()[10:30])
+            mh = '%.16s'%(m.hexdigest()[10:30])
             
             xx_saved[msisdn]=mh
             xx_rsaved[mh]=msisdn
