@@ -142,6 +142,7 @@ def session_finder(session):
                 yield '%s\t%s\t%d\t%d\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s\t%s' % (id, datetime.datetime.utcfromtimestamp(sorted_data[start_index][0]).strftime("%Y-%m-%d %H:%M:%S"), total_secs, total_bytes, pages['total_pages'], land_page, pages['inbox'], pages['mymedia'], pages['conversaciones'], pages['activities'], pages['home'], pages['friends'], pages['info'], pages['media'], pages['upload'], pages['avatar'], pages['publish'], pages['help'], ua, ip)
                 total_secs = 0
                 total_bytes = 0
+                land_page = None
                 pages = Counter()
                 start_index = index
             else:
@@ -152,7 +153,9 @@ def session_finder(session):
         if path:
             pages[path] += 1
             pages['total_pages'] += 1
-        ua, ip, land_page = d[5], d[4], d[6][0:10] 
+        ua, ip = d[5], d[4]
+        if land_page is None:
+            land_page = d[6].split('?')[0] 
  
     yield '%s\t%s\t%d\t%d\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%s\t%s' % (id, datetime.datetime.utcfromtimestamp(sorted_data[start_index][0]).strftime("%Y-%m-%d %H:%M:%S"), total_secs, total_bytes, pages['total_pages'], land_page, pages['inbox'], pages['mymedia'], pages['conversaciones'], pages['activities'], pages['home'], pages['friends'], pages['info'], pages['media'], pages['upload'], pages['avatar'], pages['publish'], pages['help'], ua, ip)
 
@@ -184,13 +187,26 @@ def inc_pageviews(path):
     return root
 
 
+def cleaning_tmp_directory(directory):
+    for root, dirs, files in os.walk(directory):
+        for f in files:
+            print os.path.join(root, f)
+            #os.unlink(os.path.join(root, f))
+        for d in dirs:
+            print os.path.join(root, d)
+            #shutil.rmtree(os.path.join(root, d))
+
+
 def run(files, output_filename=None):
    
     conf = SparkConf().setAppName("pv")
     sc = SparkContext(conf=conf)
 
+    # clean tmp directory before running our spark tasks
+    cleaning_tmp_directory(conf.get('spark.local.dir', '/tmp'))
+
     if output_filename is None:
-        output_filename = 'output_csv.pv'
+        output_filename = 'output_pv'
 
     tf = sc.textFile(files).map(lambda line: parse(line))
     sessions = tf.map(lambda s: (s.split('\t')[0].strip(), s)).groupByKey().flatMap(session_finder).coalesce(1).saveAsTextFile(output_filename)
