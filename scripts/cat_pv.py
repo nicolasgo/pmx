@@ -47,11 +47,14 @@ from datetime import datetime, date, time, timedelta
 import csv,operator
 from optparse import OptionParser
 import shutil
+from collections import Counter
 
 import config
 import dependency
+import norm_parse
 
-session_gap=30*60 # minimum gap between sessions (in seconds)
+#session_gap=30*60 # minimum gap between sessions (in seconds)
+session_gap=10*60*60 # minimum gap between sessions (in seconds)
 
 # Array 'csv' index constants
 MSISDN = 0
@@ -61,6 +64,9 @@ BYTES = 3
 IP = 4
 PV = 5
 VARIETY = 6
+
+userdata = {}
+users = Counter()
 
 def calc_end_time(s):
 
@@ -133,7 +139,148 @@ def merge_sessions(sessions):
     
     return newlist
 
+def print_oneuser(output, msisdn):
+    d=userdata[msisdn]
+    d['session']= sorted(d['session'],key=lambda s: s['time']) # sort sessions by time otherwise this is messy
 
+    for s in d['session']:
+        print >>output, '%s,%s,%s,%s,%s,' % (msisdn, s['time'], s['duration'], s['bytes'], s['ip']),
+        print >>output, '%s,%s,%s,%s,' % (s['pv'], s['variety'], s['landpage'], s['device']),
+        print >>output, '%s,%s,%s,%s,' % (s['inbox'], s['mymed'], s['conve'], s['activ']),
+        print >>output, '%s,%s,%s,%s,' % (s['home'], s['frien'], s['info'], s['media']),
+        print >>output, '%s,%s,%s,%s,%s' % (s['uploa'], s['avata'], s['publi'], s['help'], s['ua'])
+
+
+
+# 
+# targetcount: only prints users with at least targetcount pageviews
+# limit: limits the number of users to print
+#
+# output is csv-like
+# 
+def print_users(output):
+    for key in userdata:
+        print_oneuser(output, key)
+
+#
+#
+# msisdn, time, duration, bytes, ip, pv, variety, landpage, device, inbox, mymed, conve, activ, home, frien, info, media, uploa, avata, publi, help, ua
+def add_session(fields):
+    msisdn = fields[0]
+    users[msisdn] += 1
+    if msisdn not in userdata:
+        newsession = {'time':fields[1], 'duration':int(fields[2]), 'bytes':int(fields[3]), 'ip':fields[4], 'pv':fields[5], 'variety':fields[6], 'landpage':fields[7], 'device':fields[8], 'inbox':int(fields[9]), 'mymed':int(fields[10]), 'conve':int(fields[11]), 'activ':int(fields[12]), 'home':int(fields[13]), 'frien':int(fields[14]), 'info':int(fields[15]), 'media':int(fields[16]), 'uploa':int(fields[17]), 'avata':int(fields[18]), 'publi':int(fields[19]), 'help':int(fields[20]), 'ua':fields[21]}
+        userdata[msisdn]={'session':[newsession]}
+        
+        if msisdn == '68f8c9a97f66':
+            print newsession['time'], newsession['duration']
+    else: 
+        d=userdata[msisdn]
+
+        current_time = datetime.strptime(fields[1],  "%Y-%m-%d %H:%M:%S" )
+        current_duration = int(fields[2])
+
+        # We need to find current session
+        current_session = None
+        for session in d['session']:
+            session_time = datetime.strptime(session['time'],  "%Y-%m-%d %H:%M:%S" )
+            delta = (current_time - session_time).total_seconds()
+            if abs(delta) <= session_gap:
+                current_session = session 
+                break
+
+        if current_session:
+            session_time = datetime.strptime(current_session['time'],  "%Y-%m-%d %H:%M:%S" )
+               
+            # maybe we gonna have a new start time
+            new_start_time = session_time
+
+            current_end_time = current_time+timedelta(seconds=current_duration)
+            session_end_time = session_time+timedelta(seconds=current_session['duration'])
+
+            new_duration = 0
+
+            delta = int((current_time - session_time).total_seconds())
+            if delta < 0:
+                # we need to change start time of session and add the delta of start time
+                current_session['time'] = fields[1] 
+                new_start_time = current_time
+                new_duration += abs(delta)
+
+            if current_end_time > session_end_time:
+                current_session['duration'] = new_duration + (current_end_time - new_start_time).total_seconds() 
+            else:
+                current_session['duration'] = new_duration + current_session['duration']
+
+            if msisdn == '68f8c9a97f66':
+                print new_duration, current_session['time'], current_session['duration'], fields[1], fields[2]
+                        
+            current_session['bytes'] += int(fields[3]) 
+                
+            current_session['inbox'] += int(fields[9])                
+            current_session['mymed'] += int(fields[10])                
+            current_session['conve'] += int(fields[11])                
+            current_session['activ'] += int(fields[12])                
+            current_session['home'] += int(fields[13])                
+            current_session['frien'] += int(fields[14])                
+            current_session['info'] += int(fields[15])                
+            current_session['media'] += int(fields[16])                
+            current_session['uploa'] += int(fields[17])                
+            current_session['avata'] += int(fields[18])                
+            current_session['publi'] += int(fields[19])                
+            current_session['help'] += int(fields[20])                
+
+        else: 
+            newsession = {'time':fields[1], 'duration':int(fields[2]), 'bytes':int(fields[3]), 'ip':fields[4], 'pv':fields[5], 'variety':fields[6], 'landpage':fields[7], 'device':fields[8], 'inbox':int(fields[9]), 'mymed':int(fields[10]), 'conve':int(fields[11]), 'activ':int(fields[12]), 'home':int(fields[13]), 'frien':int(fields[14]), 'info':int(fields[15]), 'media':int(fields[16]), 'uploa':int(fields[17]), 'avata':int(fields[18]), 'publi':int(fields[19]), 'help':int(fields[20]), 'ua':fields[21]}
+            #newsession = {'time':fields[1], 'duration':int(fields[2].strip()), 'bytes':fields[3], 'ip':fields[4], 'pv':fields[5], 'variety':fields[6], 'landpage':fields[7], 'device':fields[8], 'inbox':fields[9], 'mymed':fields[10], 'conve':fields[11], 'activ':fields[12], 'home':fields[13], 'frien':fields[14], 'info':fields[15], 'media':fields[16], 'uploa':fields[17], 'avata':fields[18], 'publi':fields[19], 'help':fields[20], 'ua':fields[21]}
+            d['session'].append(newsession)
+
+
+def cat_pv_filter(lines):
+                
+    add_session(lines.split(','))
+        
+    return False
+
+def parse(input_file, filter_function, output_file = None):
+    for line in input_file:
+        # check for empty lines
+        if not line.strip():
+            continue
+        if line.startswith('msisdn'):
+            continue
+        filter_function(line)
+
+
+def run(files):
+    # Check are pre-condition
+    if not dependency.precondition(files, '.pv'):
+        import pv
+        if config.verbose: print "running dependencies... '.pv' files doesn't exist"
+        pv.run(files)
+
+    for input_filename in files:
+        if config.verbose: print "cat_pv(ing)", input_filename
+
+        input_file = open(config.get_current_file(input_filename,'.pv'), 'r')
+
+        output_file = open(config.get_current_file(input_filename, '.cat_pv'), 'w')
+
+        if options.dailysum:
+            session_gap=0;
+
+        parse(input_file, cat_pv_filter, output_file)
+    
+        print_users(output_file)
+
+        input_file.close()
+        output_file.close()
+
+        if config.output_file_stdout:
+            with open(config.get_current_file(input_filename,'.pv'), "r") as f:
+                shutil.copyfileobj(f, sys.stdout)
+
+"""
 def run(files):
     # Check are pre-condition
     if not dependency.precondition(files, '.pv'):
@@ -188,7 +335,7 @@ def run(files):
         if config.output_file_stdout:
             with open(config.get_current_file(input_filename,'.cat_pv'), "r") as f:
                 shutil.copyfileobj(f, sys.stdout)
-
+"""
 
 if __name__ == "__main__":
     parser = OptionParser()

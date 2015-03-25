@@ -24,7 +24,6 @@ time = []
 # Empty list means keep all 
 #  
 msisdn = []
-#msisdn = ['68f8c9a97f66']
 
 # List of 'integer's representing HTTP codes to keep
 # Example : [200, 302] will keep only HTTP code 200 and 302
@@ -77,5 +76,4 @@ def get_current_file(filename, extension=None):
     if campaign:
         return campaign+'/'+filename+(extension if extension else '')
     return None
-
 

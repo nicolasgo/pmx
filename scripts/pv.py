@@ -111,6 +111,9 @@ def inc_pageviews(path):
 
         pageviews[root] += 1
 
+    if root:
+        root = root.strip()
+
     return root
 
 # <codecell>
@@ -138,7 +141,7 @@ def print_oneuser(output, msisdn, count):
         if idx>0:
             device=s['ua'][idx-1:idx+11].strip(',')
             
-        print >>output, '%s, %s, %s, %d, %8s,'%(msisdn,s['time'], s['duration'], s['bytes'], s['ip'] ),
+        print >>output, '%s,%s,%s,%d,%8s,'%(msisdn,s['start_time'], s['duration'], s['bytes'], s['ip'] ),
         print >>output, '%3d,%d,%-6s,%s,' % (s['pv'], len(s['pages']), '/'+s['path'][:5],device),
         print_pagecounts(output, s['pages'])
         print >>output, '\"'+s['ua']+'\"'
@@ -172,7 +175,7 @@ def add_user(msisdn, time, pathroot, useragent, ip, numbytes):
         users[msisdn] += 1
 
     if msisdn not in userdata: # create the first session entry (min session is 10 secs)
-        session={'time':time,'pv':1,'duration':0,'path':pathroot, 'ip':ip, 'ua':useragent, 'pages':Counter(), 'bytes':numbytes} 
+        session={'time':time,'start_time':time, 'pv':1,'duration':0,'path':pathroot, 'ip':ip, 'ua':useragent, 'pages':Counter(), 'bytes':numbytes} 
         session['pages'][pathroot] +=1
         userdata[msisdn]={'time':time,'sessioncount':1,'session':[session], 'total_duration':0}
     else: 
@@ -190,6 +193,7 @@ def add_user(msisdn, time, pathroot, useragent, ip, numbytes):
         if current_session:
             duration = int((time - current_session['time']).total_seconds())
 
+            current_session['time'] = time
             current_session['duration'] += duration
             current_session['pv'] +=1
             current_session['pages'][pathroot] +=1
@@ -197,7 +201,7 @@ def add_user(msisdn, time, pathroot, useragent, ip, numbytes):
 
             d['total_duration'] += duration
         else: 
-            newsession={'time':time,'pv':1,'duration':0,'path':pathroot, 'ip':ip, 'ua':useragent, 'pages':Counter(), 'bytes':numbytes}
+            newsession={'time':time,'start_time':time,'pv':1,'duration':0,'path':pathroot, 'ip':ip, 'ua':useragent, 'pages':Counter(), 'bytes':numbytes}
             newsession['pages'][pathroot] +=1
             d['session'].append(newsession)
             d['sessioncount']=d['sessioncount']+1
