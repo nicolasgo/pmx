@@ -54,14 +54,14 @@ def xx_ip(ip_address):
 #
 # Regular expressions
 #
-line_nginx_re_1 = re.compile(r"""\[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] (["][\w]+ (?P<url>.+)(http\/1\.[0
+line_nginx_re_1 = re.compile(r"""\[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] (["][\w]+ (?P<url>.+)(http\/[1-5]\.[0
 1]+["])) (?P<statuscode>\d{3}) (?P<bytessent>\d+) (["](?P<refferer>(\-)|(.*))["]) (["](?P<useragent>.*)["]) (?P<id>\w+)""", re.IGNORECASE)
 
-line_nginx_re_2 = re.compile(r"""\[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] (["][\w]+ (?P<url>.+)(http\/1\.[0
+line_nginx_re_2 = re.compile(r"""\[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] (["][\w]+ (?P<url>.+)(http\/[1-5]\.[0
 1]+["])) (?P<statuscode>\d{3}) (?P<bytessent>\d+) (["](?P<refferer>(\-)|(.*))["]) (["](?P<useragent>.*)["]) - (?P<nexa>\w+) (["](?P<wifiid>(\
 -)|(.*))["])""", re.IGNORECASE)
 
-line_nginx_re_3 = re.compile(r"""\[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] (["][\w]+ (?P<url>.+)(http\/1\.[0
+line_nginx_re_3 = re.compile(r"""\[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] (["][\w]+ (?P<url>.+)(http\/[1-5]\.[0
 1]+["])) (?P<statuscode>\d{3}) (?P<bytessent>\d+) (["](?P<refferer>(\-)|(.*))["]) (["](?P<useragent>.*)["]) -""", re.IGNORECASE)
 
 line_nginx_re = [line_nginx_re_1, line_nginx_re_2, line_nginx_re_3]
@@ -89,7 +89,8 @@ def get_msisdn(dct):
                     id = match.groupdict()['userid']
     return id
 
-
+# TODO: Make sures that parse line never returns a None type as this will cause an exception later on.
+# Suggestion: have a '_Error_' id
 def parse(line):
     fields = None
     try :
@@ -107,9 +108,10 @@ def parse(line):
                 numbytes = int(dct['bytessent'])
                 msisdn = xx_msisdn(get_msisdn(dct))
                 retcode = int(dct['statuscode'])
-                useragent = xx_ua(dct['useragent'])
+                useragent_xx = xx_ua(dct['useragent'])
+                useragent = dct['useragent']
 
-                fields = '\t'.join([msisdn, str(int((time - EPOCH).total_seconds())), str(retcode), str(numbytes), ip, useragent, path])
+                fields = '\t'.join([msisdn, str(int((time - EPOCH).total_seconds())), str(retcode), str(numbytes), ip, useragent_xx, path, useragent])
 
                 # we have a match so set it, this is only for debugging (stderr) purposes
                 matched = True
@@ -196,6 +198,9 @@ def cleaning_tmp_directory(directory):
             print os.path.join(root, d)
             #shutil.rmtree(os.path.join(root, d))
 
+def get_ua_pair(s):
+    t=s[1].split('\t')
+    return '\t'.join([t[5],t[7]])
 
 def run(files, output_filename=None):
    
@@ -208,9 +213,17 @@ def run(files, output_filename=None):
     if output_filename is None:
         output_filename = 'output_pv'
 
-    tf = sc.textFile(files).map(lambda line: parse(line))
-    sessions = tf.map(lambda s: (s.split('\t')[0].strip(), s)).groupByKey().flatMap(session_finder).coalesce(1).saveAsTextFile(output_filename)
-    
+    tf = sc.textFile(files).map(lambda line: parse(line)).filter(lambda x: x is not None)
+    tf.saveAsTextFile(output_filename+'.pre', compressionCodecClass="org.apache.hadoop.io.compress.GzipCodec")
+#TODO: BUG 's' may equal to None type. See ~/spark-1.3.0-bin-hadoop2.4/20150106.trace 
+    pre = tf.map(lambda s: (s.split('\t')[0].strip(), s))
+
+#TODO: The following works but may not be optimal.. Please revise. 
+    ua_rdd = pre.map(get_ua_pair).distinct().saveAsTextFile(output_filename+'.ua')
+
+    sessions = pre.groupByKey().flatMap(session_finder).saveAsTextFile(output_filename)
+
+
     sc.stop()    
 
 
