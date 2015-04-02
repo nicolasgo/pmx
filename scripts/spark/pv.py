@@ -1,8 +1,9 @@
-from pyspark import SparkConf, SparkContext
+from pyspark import SparkConf, SparkContext, StorageLevel
 
 import os
 import re
 import sys
+import redis
 import traceback
 import datetime
 import shutil
@@ -16,39 +17,70 @@ MAXIMUM_SESSION_INACTIVITY = 30*60
 
 URL_NOT_NEEDED = ['apple-touch-icon-57x57.png','static','healthcheck','favicon.ico','ga','facebook','twitter','proxy','apple-touch-icon-72x72.png','apple-touch-icon-114x114.png','apple-touch-icon-144x144.png']
  
-#
-# Crypto 
-#
-xx_ua_saved = {}
-xx_ip_saved = {}
-xx_saved = {}
-xx_rsaved = {}  # a reverse dictionary can be used to lookup original msisdn from hashed ids
+# Our key, value repository
+try:
+    redis_server = redis.Redis('127.0.0.1')
+    xx_ip_saved = redis_server.hgetall('pmx:ip')
+    xx_saved = redis_server.hgetall('pmx:msisdn')
+    xx_rsaved = redis_server.hgetall('pmx:rmsisdn')
+    xx_ua_saved = redis_server.hgetall('pmx:ua')
+except:
+    # Any exceptions, log it, we don't want to stop execution and initialize our key, value 
+    print "REDIS exception. Running without our key, value database"
+    xx_ua_saved = {}
+    xx_ip_saved = {}
+    xx_saved = {}
+    xx_rsaved = {}  # a reverse dictionary can be used to lookup original msisdn from hashed ids
 
-def get_ua_dict():
-    return xx_ua_saved
 
-def xx(string, xx_dict, keylen=32):
+def xx_ua(useragent, keylen=32):
+    ua = useragent.encode('ascii','ignore')
     try:
-        if not xx_dict.has_key(string):
+        if ua not in xx_ua_saved:
             m = hashlib.md5()
-            m.update(string)
-            xx_dict[string]=m.hexdigest()[:keylen]
-
+            m.update(ua)
+            dg = m.hexdigest()[:keylen]
+            xx_ua_saved[ua]=dg
+            redis_server.hset('pmx:ua', ua, dg)
     except:
-        print type(string),string
-    
-    return xx_dict[string]
+        traceback.print_exc()
+        print type(useragent),useragent
 
-def xx_ua(useragent):
-    return xx(useragent,xx_ua_saved)
+    return xx_ua_saved[ua]
 
-def xx_msisdn(msisdn):
-    k= xx(str(msisdn), xx_saved, 16)
-    xx_rsaved[k]=msisdn
-    return k
 
-def xx_ip(ip_address):
-    return xx(ip_address,xx_ip_saved,12)
+def xx_msisdn(msisdn, keylen=16):
+    ms = msisdn.encode('ascii','ignore')
+    try:
+        if ms not in xx_saved:
+            m = hashlib.md5()
+            m.update(ms)
+            dg = m.hexdigest()[:keylen]
+            xx_saved[ms]=dg
+            xx_rsaved[dg]=ms
+            redis_server.hset('pmx:msisdn', ms, dg)
+            redis_server.hset('pmx:rmsisdn', dg, ms)
+    except:
+        traceback.print_exc()
+        print type(msisdn),msisdn
+
+    return xx_saved[ms]
+
+
+def xx_ip(ip_address, keylen=12):
+    ip = ip_address.encode('ascii','ignore')
+    try:
+        if ip not in xx_ip_saved:
+            m = hashlib.md5()
+            m.update(ip)
+            dg = m.hexdigest()[:keylen]
+            xx_ip_saved[ip]=dg
+            redis_server.hset('pmx:ip', ip, dg)
+    except:
+        traceback.print_exc()
+        print type(ip_address),ip_address
+
+    return xx_ip_saved[ip]
 
 
 #
@@ -111,7 +143,7 @@ def parse(line):
                 useragent_xx = xx_ua(dct['useragent'])
                 useragent = dct['useragent']
 
-                fields = '\t'.join([msisdn, str(int((time - EPOCH).total_seconds())), str(retcode), str(numbytes), ip, useragent_xx, path, useragent])
+                fields = '\t'.join([msisdn, str(int((time - EPOCH).total_seconds())), str(retcode), str(numbytes), ip, useragent_xx, path])
 
                 # we have a match so set it, this is only for debugging (stderr) purposes
                 matched = True
@@ -198,9 +230,6 @@ def cleaning_tmp_directory(directory):
             print os.path.join(root, d)
             #shutil.rmtree(os.path.join(root, d))
 
-def get_ua_pair(s):
-    t=s[1].split('\t')
-    return '\t'.join([t[5],t[7]])
 
 def run(files, output_filename=None):
    
@@ -214,15 +243,14 @@ def run(files, output_filename=None):
         output_filename = 'output_pv'
 
     tf = sc.textFile(files).map(lambda line: parse(line)).filter(lambda x: x is not None)
+
+    #tf.persist(StorageLevel.OFF_HEAP) # This turns on tachyon
+
     tf.saveAsTextFile(output_filename+'.pre', compressionCodecClass="org.apache.hadoop.io.compress.GzipCodec")
-#TODO: BUG 's' may equal to None type. See ~/spark-1.3.0-bin-hadoop2.4/20150106.trace 
+
     pre = tf.map(lambda s: (s.split('\t')[0].strip(), s))
 
-#TODO: The following works but may not be optimal.. Please revise. 
-    ua_rdd = pre.map(get_ua_pair).distinct().saveAsTextFile(output_filename+'.ua')
-
     sessions = pre.groupByKey().flatMap(session_finder).saveAsTextFile(output_filename)
-
 
     sc.stop()    
 
