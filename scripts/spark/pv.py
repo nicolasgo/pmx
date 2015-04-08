@@ -19,7 +19,7 @@ URL_NOT_NEEDED = ['apple-touch-icon-57x57.png','static','healthcheck','favicon.i
  
 # Our key, value repository
 try:
-    redis_server = redis.Redis('127.0.0.1')
+    redis_server = redis.Redis('10.0.1.23')
     xx_ip_saved = redis_server.hgetall('pmx:ip')
     xx_saved = redis_server.hgetall('pmx:msisdn')
     xx_rsaved = redis_server.hgetall('pmx:rmsisdn')
@@ -244,11 +244,28 @@ def run(files, output_filename=None):
 
     tf = sc.textFile(files).map(lambda line: parse(line)).filter(lambda x: x is not None)
 
-    #tf.persist(StorageLevel.OFF_HEAP) # This turns on tachyon
-
     tf.saveAsTextFile(output_filename+'.pre', compressionCodecClass="org.apache.hadoop.io.compress.GzipCodec")
 
     pre = tf.map(lambda s: (s.split('\t')[0].strip(), s))
+
+    sessions = pre.groupByKey().flatMap(session_finder).saveAsTextFile(output_filename)
+
+    sc.stop()    
+
+
+def run_pre(files, output_filename=None):
+   
+    conf = SparkConf().setAppName("pre_pv")
+    sc = SparkContext(conf=conf)
+
+    # clean tmp directory before running our spark tasks
+    cleaning_tmp_directory(conf.get('spark.local.dir', '/tmp'))
+
+    if output_filename is None:
+        output_filename = 'output_pv'
+
+    #pre = sc.textFile(files).filter(lambda x: x is not None).map(lambda s: (s.split('\t')[0].strip(), s))
+    pre = sc.textFile(files).map(lambda s: (s.split('\t')[0].strip(), s))
 
     sessions = pre.groupByKey().flatMap(session_finder).saveAsTextFile(output_filename)
 
