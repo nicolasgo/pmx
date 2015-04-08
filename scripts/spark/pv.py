@@ -19,7 +19,7 @@ URL_NOT_NEEDED = ['apple-touch-icon-57x57.png','static','healthcheck','favicon.i
  
 # Our key, value repository
 try:
-    redis_server = redis.Redis('10.0.1.23')
+    redis_server = redis.Redis('127.0.0.1')
     xx_ip_saved = redis_server.hgetall('pmx:ip')
     xx_saved = redis_server.hgetall('pmx:msisdn')
     xx_rsaved = redis_server.hgetall('pmx:rmsisdn')

@@ -29,7 +29,7 @@ def gunzip_untar_pre(directory, directory_pre):
 def gunzip_iso(day, iso):
     print "Decompressing files for", day, iso
     iso_country = iso
-    cmd = """cd /Users/alainlav/al; find . -type f -name "[%s][0.]*access.log-%s.gz" -print0 | xargs -0 -I {} -P 10 gunzip {}""" % (iso_country, day)
+    cmd = """cd /home/nicolas/al; find . -type f -name "[%s][0.]*access.log-%s.gz" -print0 | xargs -0 -I {} -P 10 gunzip {}""" % (iso_country, day)
     subprocess.call(cmd, shell=True)
 
  
