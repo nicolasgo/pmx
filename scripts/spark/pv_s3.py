@@ -9,12 +9,16 @@ import subprocess
 from optparse import OptionParser
 
 
+
 def load_country_iso_code():
-    filename = os.getenv('SPARK_HOME', '.')+'/oid.csv'
+    filename = os.getenv('SPARK_HOME', '.')+'/iso.tsv'
     with open(filename, mode='r') as input_file:
-        reader = csv.reader(input_file)
-        dct = dict((rows[2].strip(),rows[0].strip()) for rows in reader)
+        reader = csv.reader(input_file, delimiter='\t')
+        next(reader) # skip the header
+        dct = dict((rows[0].strip().lower(),rows[1].strip()) for rows in reader if not rows[0].strip().startswith('#'))
+    print 'loaded iso.tsv: ',dct
     return dct
+
 
 
 def merge(directory, day):
@@ -41,14 +45,6 @@ def run(day):
     country_iso_code = load_country_iso_code()
     for iso, code in country_iso_code.iteritems():
 
-        if iso == 'iso':
-            # csv header
-            continue
-
-        #if iso != 'fs' or iso == 'mx':
-        if iso != 'mx':
-            continue
-
         # get all files
         country_path = ''.join([output_path, code, '/'])
         full_path = ''.join([output_path, code, '/', day, '.pv'])
@@ -72,6 +68,13 @@ if __name__ == "__main__":
         dest="day", help='Specifies the day.  The default is current day.')
 
     options, arguments = parser.parse_args()
+
+    # TODO: This is a quick kludge to allow simple passing of a date (e.g., 20141225)) via an argument.
+    if len(arguments)>0:
+        options.year = int(arguments[0][:4])
+        options.month= int(arguments[0][4:6])
+        if len(arguments[0])>6: # only YYYYMM were given 
+            options.day  = int(arguments[0][6:])
 
     now = datetime.datetime.now()
 

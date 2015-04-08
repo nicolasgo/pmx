@@ -126,8 +126,8 @@ def run(day):
         if os.path.isdir(output_file+'.pre'):
             shutil.rmtree(output_file+'.pre') # TODO: Suggesting to remove the .pre once tared. pv_batch could have an option to prevent that.. 
 
-    # gzip our special case for fs01 and mx
-#    gzip_all_iso(day, country_iso_code)
+    # gzip all input files
+    gzip_all_iso(day, country_iso_code)
 
  
 if __name__ == "__main__":
