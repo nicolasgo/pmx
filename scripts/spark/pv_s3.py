@@ -2,12 +2,15 @@ import os
 import csv
 import sys
 import glob
+import math
 import shutil
 import datetime
 import calendar
 import subprocess
+from filechunkio import FileChunkIO
 from optparse import OptionParser
-
+#from boto.s3.connection import S3Connection
+import boto
 
 
 def load_country_iso_code():
@@ -20,7 +23,6 @@ def load_country_iso_code():
     return dct
 
 
-
 def merge(directory, day):
     print "Merging",  directory, day
     cmd = """cd %s; find . -maxdepth 1 -type f -name 'part*' -print0 | sort -z | xargs -0 cat -- >../%s""" % (directory, day)
@@ -31,7 +33,39 @@ def puts3(country_path, day):
     print "Putting on s3",  country_path, day
     #cmd = """cd %s; s3put -r -b plugger -p '/home/nicolas/' %s""" % (country_path, day)
     cmd = """cd %s; s3put -r -b p-root-001 -p '/home/nicolas/' %s""" % (country_path, day)
-    subprocess.call(cmd, shell=True)
+    print "cmd", cmd
+    #subprocess.call(cmd, shell=True)
+
+
+def puts3_multipart(country_path, day):
+    print "Putting on s3 multi part",  country_path, day
+
+    source_path = ''.join([country_path, day])
+    try:
+      source_size = os.path.getsize(source_path)
+    except:
+      return
+    
+    #/Users/alainlav/data/
+    #destination_path = source_path.replace('/home/nicolas/', '')
+    destination_path = source_path.replace('/Users/alainlav/', '')
+    print "^^^^^^^ destination path", destination_path
+
+    s3 = boto.connect_s3()
+    b = s3.get_bucket('p-root-001')
+    mp = b.initiate_multipart_upload(destination_path)
+
+    chunk_size = 1024 * 1024 * 1024 # 1 gig
+    chunk_count = int(math.ceil(source_size / float(chunk_size)))
+
+    for i in range(chunk_count):
+        offset = chunk_size * i
+        bytes = min(chunk_size, source_size - offset)
+        with FileChunkIO(source_path, 'r', offset=offset, bytes=bytes) as fp:
+            mp.upload_part_from_file(fp, part_num=i + 1)
+
+    mp.complete_upload()
+    print "done"
 
 
 def run(day):
@@ -56,6 +90,7 @@ def run(day):
 
         print merge(full_path, day)
         print puts3(country_path, day)
+        #print puts3_multipart(country_path, day)
 
 
 if __name__ == "__main__":
