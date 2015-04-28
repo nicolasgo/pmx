@@ -12,6 +12,7 @@ from optparse import OptionParser
 #from boto.s3.connection import S3Connection
 import boto
 
+FIVE_GIG = 1024*1024*1024*5 # 5 Gig limit
 
 def load_country_iso_code():
     filename = os.getenv('SPARK_HOME', '.')+'/iso.tsv'
@@ -31,10 +32,48 @@ def merge(directory, day):
 
 def puts3(country_path, day):
     print "Putting on s3",  country_path, day
-    #cmd = """cd %s; s3put -r -b plugger -p '/home/nicolas/' %s""" % (country_path, day)
-    cmd = """cd %s; s3put -r -b p-root-001 -p '/home/nicolas/' %s""" % (country_path, day)
-    print "cmd", cmd
-    #subprocess.call(cmd, shell=True)
+    cmd = """cd %s; s3put -r -b p-root-001 -p '/home/nicolas/' --region us-east-1 %s""" % (country_path, day)
+    subprocess.call(cmd, shell=True)
+
+
+def puts3_pre(country_path, day):
+    print "Putting pre.tar on s3",  country_path, day
+    cmd = """cd %s; s3put -r -b p-root-001 -p '/home/nicolas/data/pv' -k 'data/pre' --region us-east-1 %s.pv.pre.tar""" % (country_path, day)
+    subprocess.call(cmd, shell=True)
+
+def transfert_multipart(source_path, source_size, destination_path):
+    s3 = boto.connect_s3()
+    b = s3.get_bucket('p-root-001')
+    mp = b.initiate_multipart_upload(destination_path)
+
+    try:
+        chunk_size = 1024 * 1024 * 1024 # 1 gig
+        chunk_count = int(math.ceil(source_size / float(chunk_size)))
+
+        #print "chunk size", chunk_size, "chunk_count", chunk_count
+        for i in range(chunk_count):
+            offset = chunk_size * i
+            bytes = min(chunk_size, source_size - offset)
+            print "i", i, "offset", offset, "bytes", bytes
+            with FileChunkIO(source_path, 'r', offset=offset, bytes=bytes) as fp:
+                print "part_num", i+1
+                mp.upload_part_from_file(fp, part_num=i + 1)
+
+        if len(mp.get_all_parts()) == chunk_count:
+            mp.complete_upload()
+            print "Upload done"
+            remote_size = b.lookup(destination_path).size
+            source_size = os.path.getsize(source_path)
+            if remote_size == source_size:
+                print "Validation succeeded. Remote size equals to local size"
+            else:
+                print "Validation failed. Remote size not equals to local size"
+        else:
+            mp.cancel_upload()
+            print "Upload cancelled"
+    except:
+        mp.cancel_upload()
+        print "Upload cancelled, exception thrown"
 
 
 def puts3_multipart(country_path, day):
@@ -46,26 +85,23 @@ def puts3_multipart(country_path, day):
     except:
       return
     
-    #/Users/alainlav/data/
-    #destination_path = source_path.replace('/home/nicolas/', '')
-    destination_path = source_path.replace('/Users/alainlav/', '')
-    print "^^^^^^^ destination path", destination_path
+    destination_path = source_path.replace('/home/nicolas/', '')
 
-    s3 = boto.connect_s3()
-    b = s3.get_bucket('p-root-001')
-    mp = b.initiate_multipart_upload(destination_path)
+    transfert_multipart(source_path, source_size, destination_path)
 
-    chunk_size = 1024 * 1024 * 1024 # 1 gig
-    chunk_count = int(math.ceil(source_size / float(chunk_size)))
 
-    for i in range(chunk_count):
-        offset = chunk_size * i
-        bytes = min(chunk_size, source_size - offset)
-        with FileChunkIO(source_path, 'r', offset=offset, bytes=bytes) as fp:
-            mp.upload_part_from_file(fp, part_num=i + 1)
+def puts3_pre_multipart(country_path, day):
+    print "Putting on pre s3 multi part",  country_path, day
 
-    mp.complete_upload()
-    print "done"
+    source_path = ''.join([country_path, day, '.pv.pre.tar'])
+    try:
+      source_size = os.path.getsize(source_path)
+    except:
+      return
+    
+    destination_path = source_path.replace('/home/nicolas/data/pv', 'data/pre')
+
+    transfert_multipart(source_path, source_size, destination_path)
 
 
 def run(day):
@@ -89,8 +125,30 @@ def run(day):
             continue 
 
         print merge(full_path, day)
-        print puts3(country_path, day)
-        #print puts3_multipart(country_path, day)
+        source_path = ''.join([country_path, day])
+        try:
+            source_size = os.path.getsize(source_path)
+        except:
+            print 'File', source_path, 'does not exist, cancelling transfer to S3'
+            continue
+        if source_size < FIVE_GIG:
+            puts3(country_path, day)
+        else:
+            puts3_multipart(country_path, day)
+
+        # 
+        # Handling .pre.tar
+        #
+        source_path = ''.join([country_path, day, '.pv.pre.tar'])
+        try:
+            source_size = os.path.getsize(source_path)
+        except:
+            print 'File', source_path, 'does not exist, cancelling transfer to S3'
+            continue
+        if source_size < FIVE_GIG:
+            puts3_pre(country_path, day)
+        else:
+            puts3_pre_multipart(country_path, day)
 
 
 if __name__ == "__main__":
